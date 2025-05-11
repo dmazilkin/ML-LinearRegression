@@ -1,10 +1,10 @@
 import pandas as pd
 import numpy as np
-from typing import Union, List, Tuple
+from typing import Union, List, Tuple, Callable
 
 class LinearRegression:
 
-    def __init__(self, epochs: int = 100, lr: float = 0.1, metrics: List[str] = None, reg: str = None, l1_coef: float = 0, l2_coef: float = 0) -> None:
+    def __init__(self, epochs: int = 100, lr: Union[float, Callable] = 0.1, metrics: List[str] = None, reg: str = None, l1_coef: float = 0, l2_coef: float = 0) -> None:
         self._epochs = epochs
         self._lr = lr
         self._weights = None
@@ -52,7 +52,8 @@ class LinearRegression:
                 weights_history = np.concatenate([weights_history, self._weights], axis=1)
             grad = (-1) * 2 * (X.T @ error) / N + reg_grad
             # update weights with gradient descent
-            self._weights -= self._lr * grad
+            lr = self._lr if not callable(self._lr) else self._lr(epoch+1)
+            self._weights -= lr * grad
 
             # print loss if verbose is set
             if verbose:
