@@ -1,17 +1,22 @@
 import pandas as pd
 import numpy as np
-from typing import Union, List
+from typing import Union, List, Tuple
 
 class LinearRegression:
 
-    def __init__(self, epochs: int = 100, lr: float = 0.1, metrics: List[str] = None) -> None:
+    def __init__(self, epochs: int = 100, lr: float = 0.1, metrics: List[str] = None, reg: str = None, l1_coef: float = 0, l2_coef: float = 0) -> None:
         self._epochs = epochs
         self._lr = lr
         self._weights = None
         self._metrics = [metric.lower() for metric in metrics] if metrics is not None else None
         self._best_score = dict() if metrics is not None else None
+        self._reg = reg
+        self._l1_coef = l1_coef
+        self._l2_coef = l2_coef
 
-    def fit(self, X: pd.DataFrame, y: pd.Series, verbose: Union[bool, int] = False):
+    def fit(self, X: pd.DataFrame, y: pd.Series, verbose: Union[bool, int] = False) -> Tuple[List[float], List[List[float]]]:
+        loss_history = []
+        weights_history = None
         # pandas to numpy
         X = X.to_numpy()
         y = y.to_numpy()
@@ -21,24 +26,40 @@ class LinearRegression:
         y = y.reshape(N, 1)
         # initialize weights as ones vector
         self._weights = np.ones([X.shape[1], 1])
+        weights_history = np.array(self._weights)
 
         for epoch in range(self._epochs):
             # calculate prediction
             y_pred = X @ self._weights
             # calculate error
             error = y - y_pred
-            # calculate mse and gradient for MSE
-            mse = 1 / N * np.sum(error ** 2)
-            grad = (-1) * 2 * (X.T @ error) / N
+            # calculate regularization if set
+            reg = 0
+            reg_grad = 0
+            if self._reg == 'l1':
+                reg = self._l1_coef * np.abs(self._weights)
+                reg_grad = self._l1_coef * np.sign(self._weights)
+            if self._reg == 'l2':
+                reg = self._l2_coef * self._weights**2
+                reg_grad = self._l2_coef * 2 * self._weights
+            if self._reg == 'elasticnet':
+                reg = self._l1_coef * np.abs(self._weights) + self._l2_coef * self._weights**2
+                reg_grad = self._l1_coef * np.sign(self._weights) + self._l2_coef * 2 * self._weights
+            # calculate loss and gradient for MSE
+            loss = 1 / N * np.sum(error ** 2) + np.sum(reg)
+            loss_history.append(loss)
+            if epoch > 0:
+                weights_history = np.concatenate([weights_history, self._weights], axis=1)
+            grad = (-1) * 2 * (X.T @ error) / N + reg_grad
             # update weights with gradient descent
             self._weights -= self._lr * grad
 
             # print loss if verbose is set
             if verbose:
                 if epoch == 0:
-                    print(f'start | loss: {mse}', end='')
+                    print(f'start | loss: {loss}', end='')
                 elif epoch % verbose == 0:
-                    print(f'{epoch} | loss: {mse}', end='')
+                    print(f'{epoch} | loss: {loss}', end='')
 
             # calculate metric if defined and print if verbose is set
             if self._metrics is not None:
@@ -52,8 +73,11 @@ class LinearRegression:
             if verbose and epoch % verbose == 0:
                 print()
 
+        return loss_history, weights_history
+
     def _get_metric(self, X, y, metric):
         prediction = X @ self._weights
+
         if metric == 'mae':
             return np.mean(np.abs(y - prediction))
         if metric == 'mse':
@@ -83,7 +107,9 @@ class LinearRegression:
 
     def __str__(self):
         representation = 'LinearRegression: '
+
         for key, value in self.__dict__.items():
             representation += f'{key.replace('_', '')}={value}' + ', '
         representation = representation[:-2]
+
         return representation
