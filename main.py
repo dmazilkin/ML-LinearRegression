@@ -13,7 +13,7 @@ def main():
     y_data = 3 * X_data + 5 + np.random.randn(100, 1) * 2
     y_real = 3 * X_real + 5
 
-    model = LinearRegression(epochs=500, lr=lambda iter: 0.01, metrics=['mse', 'rmse', 'mae', 'mape', 'r2'])
+    model = LinearRegression(epochs=500, lr=lambda iter: 0.01, metrics=['mse', 'rmse', 'mae', 'mape', 'r2'], sgd_sample=0.5)
     loss_history, weights_history = model.fit(pd.DataFrame(X_data), pd.Series(y_data.reshape(-1)), verbose=10)
     prediction = model.predict(pd.DataFrame(X_real)).to_numpy()
     print(model.get_best_score())
