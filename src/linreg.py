@@ -1,20 +1,25 @@
 import pandas as pd
 import numpy as np
 import random
-from typing import Union, List, Tuple, Callable
+from typing import Union, List, Tuple, Dict, Callable
 
 
 class LinearRegression:
 
-    def __init__(self, epochs: int = 100, lr: Union[float, Callable] = 0.1, metrics: List[str] = None, reg: str = None, l1_coef: float = 0, l2_coef: float = 0, sgd_sample: Union[int, float] = None, random_state: int = 42) -> None:
+    def __init__(self, epochs: int = 100, lr: Union[float, Callable] = 0.1, metrics: List[str] = None, reg: str = None, l1_coef: float = 0.0, l2_coef: float = 0.0, sgd_sample: Union[int, float] = None, random_state: int = 42) -> None:
+        # initialize basic Linear Regression parameters
         self._epochs = epochs
-        self._lr = lr
+        self._lr: Union[float, Callable] = lr
         self._weights = None
+        # initialize metrics parameters
         self._metrics = [metric.lower() for metric in metrics] if metrics is not None else None
-        self._best_score = dict() if metrics is not None else None
-        self._reg = reg
-        self._l1_coef = l1_coef
-        self._l2_coef = l2_coef
+        self._score: Union[Dict[float], None] = dict() if metrics is not None else None
+        self._best_score: Union[Dict[float], None] = dict() if metrics is not None else None
+        # initialize regularization parameters
+        self._reg: Union[str, None] = reg
+        self._l1_coef: float = l1_coef
+        self._l2_coef: float = l2_coef
+        # initialize SGD parameters
         self._sgd_sample = sgd_sample
         self._random_state = random_state
 
@@ -78,28 +83,23 @@ class LinearRegression:
 
                 batch_current += batch_current_size
 
-            # print loss if verbose is set
-            if verbose:
-                if epoch == 0:
-                    print(f'start | loss: {loss}', end='')
-                elif epoch % verbose == 0:
-                    print(f'{epoch} | loss: {loss}', end='')
-
-            # calculate metric if defined and print if verbose is set
+            # update metrics values if metrics are set
             if self._metrics is not None:
-                for metric in self._metrics:
-                    metric_value = self._get_metric(X, y, metric)
-                    self._best_score[metric] = metric_value
-
-                    if (self._metrics is not None) and (epoch % verbose == 0):
-                        print(f' | {metric}: {metric_value}', end='')
-
-            if verbose and epoch % verbose == 0:
-                print()
+                self._update_metric(X, y)
+            # print epoch loss and metrics if verbose is set
+            if verbose and (epoch % verbose == 0):
+                self._verbose(X, y, loss, epoch)
+            if self._metrics is not None:
+                self._update_metric(X, y)
 
         return loss_history, weights_history
 
-    def _get_metric(self, X, y, metric):
+    def _update_metric(self, X, y):
+        for metric in self._metrics:
+            metric_value = self._get_metric_value(X, y, metric)
+            self._score[metric] = metric_value
+
+    def _get_metric_value(self, X, y, metric):
         prediction = X @ self._weights
 
         if metric == 'mae':
@@ -112,6 +112,20 @@ class LinearRegression:
             return 100 * np.mean(np.abs((y - prediction) / y))
         if metric == 'r2':
             return 1 - np.sum((y - X @ self._weights)**2) / np.sum((y - np.mean(y))**2)
+
+    def _verbose(self, X: np.array, y: np.array, loss: float, epoch: int) -> None:
+        if epoch == 0:
+            print(f'start | loss: {loss}', end='')
+        else:
+            print(f'{epoch} | loss: {loss}', end='')
+
+        # calculate metric if defined and print it
+        if self._metrics is not None:
+            for metric_name, metric_value in self._score.items():
+                print(f' | {metric_name}: {metric_value}', end='')
+
+        # add new line
+        print()
 
     def predict(self, X: pd.DataFrame) -> pd.Series:
         # preprocess data
