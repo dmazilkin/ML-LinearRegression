@@ -108,13 +108,22 @@ class LinearRegression:
         return loss_history, weights_history
 
     def _calc_regularization(self):
-        regularization = {
-            'l1': lambda l1, weights: (l1 * np.abs(weights), l1 * np.sign(weights)),
-            'l2': lambda l2, weights: (l2 * weights**2, l2 * 2 * weights),
-            'elasticnet': lambda l1, l2, weights: regularization['l1'](l1, weights) + regularization['l2'](l2, weights)
-        }
+        reg = 0
+        reg_grad = 0
 
-        return regularization[self._reg]
+        if self._reg == 'l1':
+            reg = self._l1_coef * np.abs(self._weights)
+            reg_grad = self._l1_coef * np.sign(self._weights)
+
+        if self._reg == 'l2':
+            reg = self._l2_coef * self._weights**2
+            reg_grad = self._l2_coef * 2 * self._weights
+
+        if self._reg == 'elasticnet':
+            reg = self._l1_coef * np.abs(self._weights) + self._l2_coef * self._weights**2
+            reg_grad = self._l1_coef * np.sign(self._weights) + self._l2_coef * 2 * self._weights
+
+        return reg, reg_grad
 
     def _update_metric(self, X, y):
         for metric in self._metrics:
